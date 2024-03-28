@@ -20,9 +20,9 @@ public class MainKlass {
 		CompLLogManager.configureLogger();
 		String[] sootArgs = generateSootArgs(args);
 		if(null != sootArgs) {
-			PackManager.v().getPack("wjtp").add(new Transform("wjtp.pea", new SIAnalyzer()));
+			PackManager.v().getPack("wjtp").add(new Transform("wjtp.pea", new SIAAnalyzer()));
 			soot.Main.main(sootArgs);
-			JsonGenerator.iterateClasses();
+//			JsonGenerator.iterateClasses();
 		}
 	}
 	
