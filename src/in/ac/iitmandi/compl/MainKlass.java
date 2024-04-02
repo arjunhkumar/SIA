@@ -22,7 +22,6 @@ public class MainKlass {
 		if(null != sootArgs) {
 			PackManager.v().getPack("wjtp").add(new Transform("wjtp.pea", new SIAAnalyzer()));
 			soot.Main.main(sootArgs);
-//			JsonGenerator.iterateClasses();
 		}
 	}
 	

@@ -9,9 +9,12 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import in.ac.iitmandi.compl.ds.ConstraintViolator;
+import in.ac.iitmandi.compl.ds.ViolationData;
 import in.ac.iitmandi.compl.helper.CommonUtils;
 import soot.Body;
 import soot.PatchingChain;
+import soot.Scene;
 import soot.SootClass;
 import soot.SootField;
 import soot.SootMethod;
@@ -22,6 +25,8 @@ import soot.ValueBox;
 import soot.jimple.FieldRef;
 import soot.jimple.internal.JAssignStmt;
 import soot.jimple.internal.JInstanceFieldRef;
+import soot.tagkit.BytecodeOffsetTag;
+import soot.tagkit.Tag;
 
 /**
  * @author arjun
@@ -31,9 +36,13 @@ public class ValueTypeConstraintAnalyzer{
 	
 	
 	/** Set of primitive types. */
-	Set<String> primitiveTypes = Stream.of("int", "boolean", "float", "long", "double", "byte", "char")
+	private Set<String> primitiveTypes = Stream.of("int", "boolean", "float", "long", "double", "byte", "char")
 									.collect(Collectors.toCollection(HashSet::new));
-
+	
+	private Set<SootClass> analysisSet;
+	
+	private final SootClass OBJECT_CLASS = Scene.v().getSootClass("java.lang.Object");
+	
 	/** This method is primarily responsible for checking whether a field follows structural validity. 
 	 * By structural validity we mean that any instance field of a class is subject to either of the following conditions:
 	 * 1. Type should be a primitive type as defined in the set primitiveTypes. 
@@ -147,33 +156,40 @@ public class ValueTypeConstraintAnalyzer{
 	/** TO-DO: Stricter validation based on debug info required here.
 	 * Naive check to see if a method is a finalize method. */
 	private boolean isFinalizeMethod(SootMethod method) {
-		if(null != method && CommonUtils.isNotNull(method.getName()) && method.getName().equals("finalize")) {
-			return true;
+		return null != method && CommonUtils.isNotNull(method.getName()) && method.getName().equals("finalize");
+	}
+	
+	
+	
+	private void validateFieldRegularity() {
+		if(CommonUtils.isNotNull(analysisSet)) {
+			HashSet<ConstraintViolator> violatorSet = new HashSet<ConstraintViolator>();
+			for(SootClass appClass : analysisSet) {
+				analyzeClass(appClass, violatorSet);
+			}
+		}
+	}
+	
+	private boolean checkSuperClassConstraint(SootClass appClass) {
+		if(null != appClass) {
+			SootClass superClass = appClass.getSuperclass();
+			if(superClass.equals(OBJECT_CLASS)) {
+				return true;
+			}
 		}
 		return false;
 	}
-	
-	
-	
-	private void validateFieldRegularity(Set<SootClass> validClasses) {
-		if(CommonUtils.isNotNull(validClasses)) {
-			for(SootClass appClass : validClasses) {
-				analyzeClass(appClass);
-			}
-		}
-	}
-
-	private void analyzeClass(SootClass appClass) {
+	private void analyzeClass(SootClass appClass, Set<ConstraintViolator> violatorSet) {
 		if(null != appClass && CommonUtils.isNotNull(appClass.getMethods())) {
 			for(SootMethod method : appClass.getMethods()) {
-				analyzeMethod(method);
+				analyzeMethod(method, violatorSet);
 			}
 		}
 	}
 
-	private void analyzeMethod(SootMethod method) {
+	private void analyzeMethod(SootMethod method,Set<ConstraintViolator> violatorSet) {
 		Body body = getSootMethodBody(method);
-		if(null != body) {
+		if(null != body && !method.isConstructor()) {
 			PatchingChain<Unit> units = body.getUnits();
 			for (Unit unit : units) {
 				if(unit instanceof JAssignStmt) {
@@ -185,6 +201,46 @@ public class ValueTypeConstraintAnalyzer{
 						if(def instanceof JInstanceFieldRef) {
 							JInstanceFieldRef instanceFieldRef = (JInstanceFieldRef)def;
 							Type fieldType = instanceFieldRef.getBase().getType();
+							if(CommonUtils.isNotNull(fieldType.toQuotedString())){
+								SootClass typeClass = Scene.v().getSootClass(fieldType.toQuotedString());
+								if(analysisSet.contains(typeClass)) {
+									addConstraintViolation(typeClass,method,getBCO(unit),unit.getJavaSourceStartLineNumber(), violatorSet); 
+									//unit.getJavaSourceStartLineNumber();
+								}
+							}
+						}
+					}else {
+						System.err.println("Invalid def count for unit: "+unit.toString());
+					}
+				}
+			}
+		// Else the method is a constructor.
+		}else if(null != body) {
+			SootClass constructorClass = method.getDeclaringClass();
+			PatchingChain<Unit> units = body.getUnits();
+			for (Unit unit : units) {
+				if(unit instanceof JAssignStmt) {
+					JAssignStmt assignStmt = (JAssignStmt) unit;
+					List<ValueBox> defBoxes = assignStmt.getDefBoxes();
+					if(CommonUtils.isNotNull(defBoxes) && defBoxes.size() == 1) {
+						ValueBox defBox = defBoxes.get(0);
+						Value def = defBox.getValue();
+						if(def instanceof JInstanceFieldRef) {
+							JInstanceFieldRef instanceFieldRef = (JInstanceFieldRef)def;
+							Type fieldType = instanceFieldRef.getBase().getType();
+							if(CommonUtils.isNotNull(fieldType.toQuotedString())){
+								SootClass typeClass = Scene.v().getSootClass(fieldType.toQuotedString());
+								if(!typeClass.equals(constructorClass) && analysisSet.contains(typeClass)) {
+									addConstraintViolation(typeClass,method,getBCO(unit),unit.getJavaSourceStartLineNumber(), violatorSet); 
+									//unit.getJavaSourceStartLineNumber();
+								// Else a definition is being made inside the constructor. Ensure regulated constructors.
+								}else if(analysisSet.contains(typeClass)) {
+									if(assignStmt.getRightOp().equals(soot.jimple.NullConstant.v())) {
+										addConstraintViolation(typeClass,method,getBCO(unit),unit.getJavaSourceStartLineNumber(), violatorSet); 
+									}
+								}
+								
+							}
 						}
 					}else {
 						System.err.println("Invalid def count for unit: "+unit.toString());
@@ -192,6 +248,18 @@ public class ValueTypeConstraintAnalyzer{
 				}
 			}
 		}
+	}
+
+	/**
+	 * @param unit
+	 */
+	private int getBCO(Unit unit) {
+		final Tag BCO_TAG = unit.getTag(BytecodeOffsetTag.NAME);
+		if(BCO_TAG instanceof BytecodeOffsetTag) {
+			BytecodeOffsetTag bcoTag = (BytecodeOffsetTag)BCO_TAG;
+			return bcoTag.getBytecodeOffset();
+		}
+		return -1;
 	}
 	
 	
@@ -207,9 +275,38 @@ public class ValueTypeConstraintAnalyzer{
 			try {
 				body = classMethod.retrieveActiveBody();
 			}catch(Exception e) {
-				
+				System.err.println("Exception occured while retrieving soot body for method: "+classMethod.toString());
 			}
 		}
 		return body;
 	}
+	
+	
+	private void addConstraintViolation(SootClass typeClass, SootMethod method, int bco, int javaSrcLineNo, Set<ConstraintViolator> violatorSet) {
+		ConstraintViolator existingViolator = findExistingViolator4Class(typeClass, violatorSet);
+		if(existingViolator == null) {
+			ConstraintViolator violator = new ConstraintViolator(typeClass,1, new ViolationData(method,bco,javaSrcLineNo));
+			violatorSet.add(violator);
+		}else {
+			existingViolator.addNewViolation(method,bco,javaSrcLineNo);
+		}
+	}
+
+
+	private ConstraintViolator findExistingViolator4Class(SootClass typeClass, Set<ConstraintViolator> violatorSet) {
+		if(null != typeClass && CommonUtils.isNotNull(violatorSet)) {
+			for(ConstraintViolator violator : violatorSet) {
+				if(null != violator.getAppClass() && violator.getAppClass().equals(typeClass)) {
+					return violator;
+				}
+			}
+		}
+		return null;
+	}
+	
+	
+//	private void removeViolators(HashSet<ConstraintViolator> violatorSet) {
+//		if(CommonUtils.isNotNull(violatorSet))
+//	}
+	
 }

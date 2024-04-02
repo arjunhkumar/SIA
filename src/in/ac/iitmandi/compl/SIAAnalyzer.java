@@ -25,7 +25,12 @@ public class SIAAnalyzer extends SceneTransformer {
 	@Override
 	protected void internalTransform(String phaseName, Map<String, String> options) {
 		populateWorkingSet();
-//		findValueClasses();
+		findInlineableTypeClasses();
+	}
+
+	private void findInlineableTypeClasses() {
+		ValueTypeConstraintAnalyzer vtAnalyzer = new ValueTypeConstraintAnalyzer();
+//		vtAnalyzer.
 	}
 
 	/**
