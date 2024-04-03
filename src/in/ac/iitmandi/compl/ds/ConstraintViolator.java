@@ -9,6 +9,7 @@ import java.util.Iterator;
 import java.util.Objects;
 import java.util.Set;
 
+import in.ac.iitmandi.compl.ds.ViolationTypes.VIOLATIONTYPE;
 import soot.SootClass;
 import soot.SootMethod;
 
@@ -72,9 +73,17 @@ public class ConstraintViolator {
 		this.violationData = violationData;
 	}
 
-	public void addNewViolation(SootMethod method, int bco, int javaSrcLineNo) {
+	public void addNewViolation(SootMethod method, int bco, int javaSrcLineNo, VIOLATIONTYPE type) {
 		if(null != method && bco > -1) {
-			ViolationData violation = new ViolationData(method, bco, javaSrcLineNo);
+			ViolationData violation = new ViolationData(method, bco, javaSrcLineNo, type);
+			this.violationData.add(violation);
+			this.violationCount++;
+		}
+	}
+	
+	public void addNewViolation(VIOLATIONTYPE type) {
+		if(null != type) {
+			ViolationData violation = new ViolationData(type);
 			this.violationData.add(violation);
 			this.violationCount++;
 		}

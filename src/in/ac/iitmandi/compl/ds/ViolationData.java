@@ -5,6 +5,7 @@ package in.ac.iitmandi.compl.ds;
 
 import java.util.Objects;
 
+import in.ac.iitmandi.compl.ds.ViolationTypes.VIOLATIONTYPE;
 import soot.SootMethod;
 
 /**
@@ -16,12 +17,19 @@ public class ViolationData {
 	private SootMethod methodInfo;
 	private int BCI;
 	private int javaSourceLineNumber;
+	private VIOLATIONTYPE violationType;
 	
-	public ViolationData(SootMethod method, int bco, int javaSrcLineNo) {
+	public ViolationData(SootMethod method, int bco, int javaSrcLineNo, VIOLATIONTYPE violationType) {
 		this.methodInfo = method;
 		this.BCI = bco;
 		this.javaSourceLineNumber = javaSrcLineNo;
+		this.violationType = violationType;
 	}
+	
+	public ViolationData(VIOLATIONTYPE type) {
+		this.violationType = type;
+	}
+	
 	/**
 	 * @return the methodInfo
 	 */
@@ -60,11 +68,23 @@ public class ViolationData {
 		this.javaSourceLineNumber = javaSourceLineNumber;
 	}
 	
-	@Override
-	public int hashCode() {
-		return Objects.hash(BCI, methodInfo, javaSourceLineNumber);
+	/**
+	 * @return the violationType
+	 */
+	public VIOLATIONTYPE getViolationType() {
+		return violationType;
+	}
+	/**
+	 * @param violationType the violationType to set
+	 */
+	public void setViolationType(VIOLATIONTYPE violationType) {
+		this.violationType = violationType;
 	}
 	
+	@Override
+	public int hashCode() {
+		return Objects.hash(BCI, javaSourceLineNumber, methodInfo, violationType);
+	}
 	
 	@Override
 	public boolean equals(Object obj) {
@@ -75,14 +95,9 @@ public class ViolationData {
 			return false;
 		}
 		ViolationData other = (ViolationData) obj;
-		return BCI == other.BCI && javaSourceLineNumber == other.javaSourceLineNumber 
-				&& Objects.equals(methodInfo, other.methodInfo);
+		return BCI == other.BCI && javaSourceLineNumber == other.javaSourceLineNumber
+				&& Objects.equals(methodInfo, other.methodInfo) && violationType == other.violationType;
 	}
 	
-	@Override
-	public String toString() {
-		return "ViolationData [" + (methodInfo != null ? "methodInfo=" + methodInfo + ", " : "") + "BCI=" + BCI
-				+ ", javaSourceLineNumber=" + javaSourceLineNumber + "]";
-	}
 	
 }

@@ -30,7 +30,7 @@ public class SIAAnalyzer extends SceneTransformer {
 
 	private void findInlineableTypeClasses() {
 		ValueTypeConstraintAnalyzer vtAnalyzer = new ValueTypeConstraintAnalyzer();
-//		vtAnalyzer.
+		vtAnalyzer.analyzeWorkingSet(this);
 	}
 
 	/**
@@ -62,6 +62,20 @@ public class SIAAnalyzer extends SceneTransformer {
 		this.valueTypes.add(appClass);
 	}
 	
+	/**
+	 * @return the workingSet
+	 */
+	public Set<SootClass> getWorkingSet() {
+		return workingSet;
+	}
+
+	/**
+	 * @return the valueTypes
+	 */
+	public Set<SootClass> getValueTypes() {
+		return valueTypes;
+	}
+
 	public boolean isLibraryPackagedClass(SootClass sootClass) {
 		if(null != sootClass && CommonUtils.isNotNull(sootClass.getPackageName())) {
 			String packageName = sootClass.getPackageName();
