@@ -47,6 +47,12 @@ public class ViolationTypes {
 			public boolean isNullAssignViolation() {
 				return true;
 			}
+		},
+		
+		NO_INSTANCE_FIELDS (6){
+			public boolean isNoInstanceFieldViolation() {
+				return true;
+			}
 		};
 
 		private int violationID;
@@ -77,6 +83,10 @@ public class ViolationTypes {
 		}
 		
 		public boolean isNullAssignViolation() {
+			return false;
+		}
+		
+		public boolean isNoInstanceFieldViolation() {
 			return false;
 		}
 	}

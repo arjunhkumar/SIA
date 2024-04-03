@@ -74,7 +74,7 @@ public class ConstraintViolator {
 	}
 
 	public void addNewViolation(SootMethod method, int bco, int javaSrcLineNo, VIOLATIONTYPE type) {
-		if(null != method && bco > -1) {
+		if(null != method) {
 			ViolationData violation = new ViolationData(method, bco, javaSrcLineNo, type);
 			this.violationData.add(violation);
 			this.violationCount++;
