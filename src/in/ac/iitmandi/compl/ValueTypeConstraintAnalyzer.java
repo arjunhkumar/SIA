@@ -53,6 +53,7 @@ public class ValueTypeConstraintAnalyzer{
 				validateConstraints(appClass,siaAnalyzer);
 			}
 			validateFieldRegularity();
+			printConstraints();
 		}
 	}
 	
@@ -62,6 +63,14 @@ public class ValueTypeConstraintAnalyzer{
 				&& checkSuperClassConstraint(appClass) ;
 	}
 
+	
+	private void printConstraints(){
+		if(CommonUtils.isNotNull(analysisSet)) {
+			for(ConstraintViolator violator : this.violatorSet) {
+				System.out.println(violator.toString());
+			}
+		}
+	}
 
 	/** This method is primarily responsible for checking whether a field follows structural validity. 
 	 * By structural validity we mean that any instance field of a class is subject to either of the following conditions:
